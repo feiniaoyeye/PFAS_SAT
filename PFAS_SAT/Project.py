@@ -511,7 +511,7 @@ class Project():
                              link=link)
         fig = go.Figure(data=[data], layout=layout)
         output_file = filename + '.html' if filename else 'sankey.html'
-        pio.write_html(fig, file=output_file, auto_open=view)
+        pio.write_html(fig, file=output_file, auto_open=view, include_plotlyjs='directory')
 
         # Store data for ploting the sankey
         store_data = {}

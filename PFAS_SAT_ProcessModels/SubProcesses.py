@@ -79,8 +79,8 @@ def solid_water_partition(mixture, water_vol, LogPartCoef_data):
     C_Solid = pd.Series(index=mixture._PFAS_Index, dtype='float64')
 
     for i, j in enumerate(mixture._PFAS_Index):
-        C_Water[i] = mixture.PFAS[j] / (water_vol + mixture.get_Ccont() * solid_mass * 10**LogPartCoef_data[j]['amount'])
-        C_Solid[i] = C_Water[i] * 10**(LogPartCoef_data[j]['amount']) * mixture.get_Ccont()
+        C_Water[j] = mixture.PFAS[j] / (water_vol + mixture.get_Ccont() * solid_mass * 10**LogPartCoef_data[j]['amount'])
+        C_Solid[j] = C_Water[j] * 10**(LogPartCoef_data[j]['amount']) * mixture.get_Ccont()
     return C_Solid, C_Water
 
 
@@ -92,7 +92,7 @@ def soil_sorption(mixture, LogPartCoef_data, Leachate_vol, Runoff_vol):
     for i, j in enumerate(mixture._PFAS_Index):
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount'])
         A = (Leachate_vol + Runoff_vol) / 365 * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * 365)
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * 365)
 
     Remaining = Flow(mixture._CommonData)
     Remaining.PFAS = PFAS_remain
@@ -133,7 +133,7 @@ def aerobic_composting(mixture, ProcessData, LogPartCoef_data, PrecipitationData
     for i, j in enumerate(mixture._PFAS_Index):
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount'])
         A = (CW_Col_vol + CW_vol) / ProcessData['ac_time']['amount'] * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * ProcessData['ac_time']['amount'])
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * ProcessData['ac_time']['amount'])
 
     # Initialize products
     Remaining = Flow(mixture._CommonData)
@@ -182,7 +182,7 @@ def curing(mixture, ProcessData, LogPartCoef_data, PrecipitationData):
     for i, j in enumerate(mixture._PFAS_Index):
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount'])
         A = CW_vol / ProcessData['curing_time']['amount'] * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * ProcessData['curing_time']['amount'])
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * ProcessData['curing_time']['amount'])
 
     # Initialize products
     Remaining = Flow(mixture._CommonData)
@@ -209,7 +209,7 @@ def landfil_sorption(mixture, LogPartCoef_data, LF_Leachate_Vol, Leachate_Vol):
     for i, j in enumerate(mixture._PFAS_Index):
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount'])
         A = (LF_Leachate_Vol + Leachate_Vol) / 365 * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * 365)
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * 365)
 
     LF_storage = Flow(mixture._CommonData)
     LF_storage.PFAS = PFAS_remain
@@ -240,7 +240,7 @@ def landfil_sorption_plus(mixture, LogPartCoef_data, Additive_LogPartCoef, Addit
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount']
                  + Additive_mass * 10**Additive_LogPartCoef[j]['amount'])
         A = (LF_Leachate_Vol + Leachate_Vol) / 365 * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * 365)
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * 365)
 
     # Initialize products
     LF_Leachate = Flow(mixture._CommonData)
@@ -341,7 +341,7 @@ def stabilization(mixture, LogPartCoef_data, Additive_LogPartCoef, Additive_mass
         K = 1 / (water_vol + mixture.C * 10**LogPartCoef_data[j]['amount']
                  + Additive_mass * 10**Additive_LogPartCoef[j]['amount'])
         A = (Leachate_vol + Runoff_vol) / 365 * K
-        PFAS_remain[i] = mixture.PFAS[j] * np.exp(-A * 365)
+        PFAS_remain[j] = mixture.PFAS[j] * np.exp(-A * 365)
 
     # Initialize products
     Leachate = Flow(mixture._CommonData)

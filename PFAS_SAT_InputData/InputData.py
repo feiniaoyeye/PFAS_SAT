@@ -28,7 +28,7 @@ class InputData(MC):
         """Initialize ``InputData`` class
         """
         self.input_data_path = input_data_path
-        self.Data = pd.read_csv(self.input_data_path, dtype={'amount': float, 'uncertainty_type': pd.Int64Dtype(), 'loc': float,
+        self.Data = pd.read_csv(self.input_data_path, dtype={'amount': float, 'loc': float,
                                                              'scale': float, 'shape': float, 'minimum': float, 'maximum': float})
 
         self.Data['Comment'] = self.Data['Comment'].fillna('')
@@ -38,7 +38,7 @@ class InputData(MC):
             self.Data['Parameter Name'] = self.Data['Parameter Name'].apply(ast.literal_eval)
 
         # Setting uncertainty type to 0 : Undefined ; when it is not defined
-        self.Data['uncertainty_type'].fillna(0, inplace=True)
+        self.Data['uncertainty_type'] = self.Data['uncertainty_type'].fillna(0)
         # self.Data=self.Data.where((pd.notnull(self.Data)),None)
         self.Input_dict = {}
         self.keys = self.Data.columns[3:]

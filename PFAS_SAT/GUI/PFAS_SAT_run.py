@@ -7,7 +7,7 @@ Created on Thu Jul  9 11:39:58 2020
 # Import UI
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineProfile
+from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEngineSettings
 from .Table_from_pandas import *
 from . import PFAS_SAT_ui
 from . import MC_ui
@@ -676,7 +676,8 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         self.MC_PBr.setValue(0)
 
         # Clear FA
-        self.html_figur.setUrl(None)
+        if hasattr(self, 'html_figur'):
+            self.html_figur.setUrl(QtCore.QUrl('about:blank'))
         self.Inventory_table.clearSpans()
         self.FA_tab.setEnabled(False)
 
@@ -717,8 +718,9 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         self.Project.setup_network(Cut_Off=self.CutOff)
 
         ### Plot Network
-        self.Project.plot_network(view=False)
-        image = QtGui.QImage('Network.png')
+        network_path = os.path.join(os.getcwd(), 'Network')
+        self.Project.plot_network(view=False, file_name=network_path)
+        image = QtGui.QImage(network_path + '.png')
         pixmap = QtGui.QPixmap(image)
         self.Network_ImageLable.setPixmap(pixmap)
 
@@ -736,8 +738,19 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
             # connect the signal for download file
             QWebEngineProfile.defaultProfile().downloadRequested.connect(self.on_downloadRequested)
 
+            # Allow local file access at profile level
+            profile = QWebEngineProfile.defaultProfile()
+            profile_settings = profile.settings()
+            profile_settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+            profile_settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+            profile_settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+
             # set the htm webEngine
             self.html_figur = QWebEngineView(parent=self.Sankey_groupBox)
+            settings = self.html_figur.settings()
+            settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
             self.Sankey_layout.addWidget(self.html_figur)
             self.FA_tab_init_status = True
 
@@ -753,15 +766,24 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         self.Inventory_table.installEventFilter(self)
 
         ### Plot Sankey
-        plot_worker = Worker_Plot(parent=self.FA_Btm, project = self.Project)
-        plot_worker.Plot.connect(self.setup_sankey)
-        plot_worker.start()
+        self._plot_worker = Worker_Plot(parent=self.FA_Btm, project=self.Project)
+        self._plot_worker.Plot.connect(self.setup_sankey)
+        self._plot_worker.Error.connect(lambda msg: self.msg_popup('Flow Analysis Error', msg, 'Critical'))
+        self._plot_worker.start()
 
         ### Check PFAS Balance
-        self.Project.Inventory.check_PFAS_balance(Start_flow = self.Project.InputFlow, pop_up = self.msg_popup)
+        self.Project.Inventory.check_PFAS_balance(Start_flow=self.Project.InputFlow, pop_up=self.msg_popup)
+
     @QtCore.Slot()
     def setup_sankey(self):
-        self.html_figur.setUrl(QtCore.QUrl.fromLocalFile(os.getcwd()+'\\sankey.html'))
+        sankey_path = os.path.join(os.getcwd(), 'sankey.html')
+        print(f"[setup_sankey] Loading: {sankey_path}, exists: {os.path.exists(sankey_path)}")
+        if not os.path.exists(sankey_path):
+            print("[setup_sankey] ERROR: sankey.html not found")
+            return
+        url = QtCore.QUrl.fromLocalFile(sankey_path)
+        self.html_figur.setUrl(url)
+        print(f"[setup_sankey] setUrl called: {url.toString()}")
 
 #%% MC tab
 # =============================================================================
@@ -897,18 +919,20 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
     def MC_Run_func(self):
         self.MC_is_runnning = True
         print(" \n Monte Carlo simulation is started. \n Number of iterations: {} \n".format(int(self.MC_N_runs.text())))
-        MC_worker = Worker_MC(parent=self.MC_run,
+        self._MC_worker = Worker_MC(parent=self.MC_run,
                               project=self.Project,
                               InputFlow_object=self.IncomFlow,
-                              n=int(self.MC_N_runs.text()),
-                              seed=int(self.MC_Seed.text()),
+                              n=self.MC_N_runs.value(),
+                              seed=self.MC_Seed.value(),
                               TypeOfPFAS=self.MC_PFAS.currentText())
-        MC_worker.UpdatePBr_Opt.connect(self.setPBr_MC)
-        MC_worker.Report.connect(self.report_time_WP)
-        MC_worker.start()
+        self._MC_worker.UpdatePBr_Opt.connect(self.setPBr_MC)
+        self._MC_worker.Report.connect(self.report_time_WP)
+        self._MC_worker.Error.connect(lambda msg: self.msg_popup('Monte Carlo Error', msg, 'Critical'))
+        self._MC_worker.start()
 
-    @QtCore.Slot()
+    @QtCore.Slot(dict)
     def report_time_WP(self, report):
+        print("[report_time_WP] MC finished, showing results")
         #Notify the user that the project has created successfully
         self.MC_results = report['results']
         self.msg_popup('Monte Carlo Simulation','The monte carlo simulation is done successfully in {} seconds.'.format(report['time']),'Information')
@@ -937,7 +961,19 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
 # =============================================================================
     @QtCore.Slot()
     def show_res_func(self):
-        Dialog = QtWidgets.QDialog()
+        if not hasattr(self, 'MC_results'):
+            self.msg_popup('No Results', 'Please run the Monte Carlo simulation first.', 'Warning')
+            return
+        try:
+            self._show_res_func_inner()
+        except Exception as e:
+            import traceback
+            err = traceback.format_exc()
+            print(f"[show_res_func] ERROR: {err}")
+            self.msg_popup('Results Error', str(e), 'Warning')
+
+    def _show_res_func_inner(self):
+        Dialog = QtWidgets.QDialog(self)
         self.MC_Widget = MC_ui.Ui_MC_Results()
         self.MC_Widget.setupUi(Dialog)
         self.MC_Widget.tabWidget.setCurrentWidget(self.MC_Widget.MC_Data)
@@ -991,7 +1027,7 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         lay.addWidget(toolbar)
         lay.addWidget(self.canvas_corr)
 
-        Dialog.show()
+        print("[show_res_func] Opening results dialog")
         Dialog.exec()
 
     @QtCore.Slot()
@@ -1275,16 +1311,18 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
 # =============================================================================
 # =============================================================================
     def msg_popup(self, Subject, Information, Type):
-        msg = QtWidgets.QMessageBox()
-        if Type =='Warning':
+        msg = QtWidgets.QMessageBox(self)
+        if Type == 'Warning':
             msg.setIcon(msg.Icon.Warning)
         elif Type == 'Information':
             msg.setIcon(msg.Icon.Information)
+        elif Type == 'Critical':
+            msg.setIcon(msg.Icon.Critical)
         msg.setWindowTitle('PFAS SAT')
         msg.setWindowIcon(self.icon)
         msg.setText(Subject)
         msg.setInformativeText(Information)
-        Ok=msg.addButton(msg.Ok)
+        msg.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
         msg.exec()
 
     @QtCore.Slot()  # select file and read the name of it. Import the name to the LineEdit.
