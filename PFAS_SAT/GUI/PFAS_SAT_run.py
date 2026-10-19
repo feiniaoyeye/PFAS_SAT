@@ -722,6 +722,13 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         self.Project.plot_network(view=False, file_name=network_path)
         image = QtGui.QImage(network_path + '.png')
         pixmap = QtGui.QPixmap(image)
+        # Scale the rendered diagram down (never up) to fit inside the scroll
+        # area's viewport so it shows up fully in the frame instead of being
+        # cropped/requiring scrolling, while keeping the original aspect ratio.
+        viewport_size = self.scrollArea.viewport().size()
+        if not pixmap.isNull() and viewport_size.width() > 0 and viewport_size.height() > 0:
+            pixmap = pixmap.scaled(viewport_size, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                                   QtCore.Qt.TransformationMode.SmoothTransformation)
         self.Network_ImageLable.setPixmap(pixmap)
 
 #%% FA tab
