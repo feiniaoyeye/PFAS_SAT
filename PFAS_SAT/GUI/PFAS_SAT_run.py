@@ -7,7 +7,7 @@ Created on Thu Jul  9 11:39:58 2020
 # Import UI
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEngineSettings, QWebEnginePage
 from .Table_from_pandas import *
 from . import PFAS_SAT_ui
 from . import MC_ui
@@ -782,7 +782,15 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
             print("[setup_sankey] ERROR: sankey.html not found")
             return
         url = QtCore.QUrl.fromLocalFile(sankey_path)
-        self.html_figur.setUrl(url)
+        if self.html_figur.url() == url:
+            # The file content changed on disk (new flow params/network), but the URL
+            # itself is identical to what's already loaded. QWebEngineView treats
+            # setUrl() with an unchanged URL as a no-op, so the stale diagram from
+            # before the update stays on screen. Force a hard reload that bypasses
+            # the cache so the freshly-written sankey.html is actually re-read.
+            self.html_figur.page().triggerAction(QWebEnginePage.WebAction.ReloadAndBypassCache)
+        else:
+            self.html_figur.setUrl(url)
         print(f"[setup_sankey] setUrl called: {url.toString()}")
 
 #%% MC tab
@@ -917,6 +925,9 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
 
     @QtCore.Slot()
     def MC_Run_func(self):
+        if not hasattr(self.IncomFlow, '_flow_full_name'):
+            self.msg_popup('Monte Carlo Error', 'Please select and confirm your incoming waste flow (Waste Materials tab) before running the Monte Carlo simulation.', 'Critical')
+            return
         self.MC_is_runnning = True
         print(" \n Monte Carlo simulation is started. \n Number of iterations: {} \n".format(int(self.MC_N_runs.text())))
         self._MC_worker = Worker_MC(parent=self.MC_run,
@@ -1204,6 +1215,9 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
 
     @QtCore.Slot(str)
     def SA_Run_func(self):
+        if not hasattr(self.IncomFlow, '_flow_full_name'):
+            self.msg_popup('Sensitivity Analysis Error', 'Please select and confirm your incoming waste flow (Waste Materials tab) before running the Sensitivity Analysis.', 'Critical')
+            return
         self.Project.setup_MC(self.IncomFlow)
         if self.SA_Model.currentText() == 'IncomFlow':
             model = 'IncomFlow'

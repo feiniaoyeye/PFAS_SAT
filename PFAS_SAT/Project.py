@@ -498,7 +498,8 @@ class Project():
         # The other good option for the valueformat is ".3f".
         layout = go.Layout(title_text=None,
                            font_size=16,
-                           hoverlabel=dict(font_size=14))
+                           hoverlabel=dict(font_size=14),
+                           autosize=True)
         if normalize and Start_flow:
             data = go.Sankey(valueformat=".4s",
                              valuesuffix="%",
@@ -511,7 +512,12 @@ class Project():
                              link=link)
         fig = go.Figure(data=[data], layout=layout)
         output_file = filename + '.html' if filename else 'sankey.html'
-        pio.write_html(fig, file=output_file, auto_open=view, include_plotlyjs='directory')
+        # default_width/height='100%' + config.responsive=True let the chart track
+        # the size of the QWebEngineView/browser window instead of staying frozen
+        # at the size it had when it was first rendered.
+        pio.write_html(fig, file=output_file, auto_open=view, include_plotlyjs='directory',
+                       default_width='100%', default_height='100%',
+                       config={'responsive': True})
 
         # Store data for ploting the sankey
         store_data = {}

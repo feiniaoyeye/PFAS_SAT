@@ -109,4 +109,5 @@ Outgoing PFAS: {}
 Balance Error: {} % """.format(PFAS_Input, PFAS_Output, Balance_Error)
             if pop_up:
                 pop_up('PFAS Mass Balance Warning!', msg, 'Warning')
-            raise Exception(msg)
+            else:
+                raise Exception(msg)
