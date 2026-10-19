@@ -87,7 +87,15 @@ class MyQtApp(PFAS_SAT_ui.Ui_PFAS_SAT, QtWidgets.QMainWindow):
         self.icon.addPixmap(QtGui.QPixmap(":/icons/ICONS/PFAS_SAT_1.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         ### set setting
-        self.CutOff = 0.001  # Fraction of total incoming PFAS
+        # Fraction of total incoming PFAS below which a flow is dropped from the
+        # network/report. 0.001 (0.1%) was too coarse: for process sets with a
+        # dominant sink (e.g. most PFAS staying in Landfill storage), downstream
+        # branches like Land Application/WWT carry far less than 0.1% of the
+        # total and were silently excluded even though they were explicitly
+        # selected in Define System. 1e-6 still safely bounds the recursion for
+        # cyclic networks (e.g. Landfill <-> WWT) while keeping those branches
+        # visible.
+        self.CutOff = 1e-6
         self.AcceptableError = 5  # %
         self.Included_PFAS = deepcopy(CommonData.PFAS_Index)
         self._All_PFAS = deepcopy(CommonData.PFAS_Index)
