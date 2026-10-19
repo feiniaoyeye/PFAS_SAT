@@ -23,6 +23,20 @@ This creates a conda environment named `pfas` and installs PFAS_SAT along with
 all its dependencies (PySide6 for the GUI, pandas, plotly, graphviz, matplotlib,
 seaborn, jupyter, etc.), as listed in `setup.py`.
 
+`pip install -e .` only installs the **Python** `graphviz` bindings - it does NOT
+install the actual Graphviz software (the `dot` executable) that those bindings
+call out to. Without it, the process-network diagram in the "Define System" tab
+silently fails to render/update (the Python call fails, prints a warning to the
+terminal, and the old image is left on screen). Install it separately:
+
+```bash
+brew install graphviz        # macOS
+# or: conda install -c conda-forge graphviz
+# or: sudo apt install graphviz   # Debian/Ubuntu
+```
+
+Verify with `dot -V` after activating the `pfas` environment.
+
 ## Running the tool
 
 Every time you want to open PFAS_SAT:
